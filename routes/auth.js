@@ -22,12 +22,6 @@ router.post('/', function(req, res, next) {
         method: 'get'
       };
 
-      let passport = SparkMD5.hash('123ab' + password) + '_' + username;
-      res.json({
-        message: 'success',
-        data: Buffer.from(passport).toString('base64')
-      });
-
       httpRequest(cfgIp).then(body => {
         let ip = body.split('\n')[2].split('=')[1];
         let passport = SparkMD5.hash('123ab' + password) + '_' + username;
