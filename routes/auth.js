@@ -2,7 +2,13 @@ var express = require('express');
 var router = express.Router();
 
 const { httpRequest } = require('../utils/inet');
-const SparkMD5 = require('spark-md5');
+const { hash } = require('spark-md5');
+const { getClientIp } = require('@supercharge/request-ip');
+
+router.use(function (req, res, next) {
+  req.ip = getClientIp(req);
+  next();
+});
 
 router.post('/', function(req, res, next) {
   try {
@@ -10,25 +16,14 @@ router.post('/', function(req, res, next) {
     const [username, password] = Buffer.from(b64auth, 'base64').toString().split(':');
 
     if (username && password) {
-      const cfgIp = {
-        hostname: 'cloudflare.com',
-        path: '/cdn-cgi/trace',
-        method: 'get'
-      };
-
-      const cfgBais = {
+      const passport = hash('123ab' + password) + '_' + username;
+      const config = {
         hostname: 'bais.ub.ac.id',
-        path: '/api/login/jsonapi',
+        path: `/api/login/jsonapi/?userid=${username}&passport=${passport}&challenge=123ab&appid=EKS1&ipaddr=${req.ip}`,
         method: 'get'
       };
 
-      httpRequest(cfgIp).then(body => {
-        let ip = body.split('\n')[2].split('=')[1];
-        let passport = SparkMD5.hash('123ab' + password) + '_' + username;
-
-        cfgBais.path += `/?userid=${username}&passport=${passport}&challenge=123ab&appid=EKS1&ipaddr=${ip}`;
-        return httpRequest(cfgBais);
-      }).then(body => {
+      httpRequest(config).then(body => {
         res.json({
           message: 'success',
           data: Buffer.from(body).toString('base64')
@@ -42,8 +37,8 @@ router.post('/', function(req, res, next) {
     } else {
       res.status(401).json({
         message: 'error',
-        data: 'Authentication required.'}
-      );
+        data: 'Authentication required.'
+      });
     }
   } catch (err) {
     res.json({
